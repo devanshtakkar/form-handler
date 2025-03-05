@@ -1,4 +1,5 @@
-import { PORT } from "./CONSTANTS";
+import { PORT, SMTP_SEND_EMAIL } from "./CONSTANTS";
+import { generateTransporter } from "./transporter";
 import express, { Request, Response } from "express";
 require("dotenv").config();
 import { Firestore } from "@google-cloud/firestore";
@@ -25,14 +26,14 @@ const contactFormSchema = z.object({
   }),
   message: z.string().min(1, "Message is required"),
   submissionDate: z.string().transform((str) => new Date(str)),
-  lisitngUrl: z.string().url("Invalid URL format"),
+  listingUrl: z.string().url("Invalid URL format"),
 });
 
 // Type for validated form data
 type ValidatedContactForm = z.infer<typeof contactFormSchema>;
 
 // Endpoint to handle form data
-app.post("/form",async  (req: Request, res: Response) => {
+app.post("/form", async (req: Request, res: Response) => {
   console.log("Received form data:", req.body);
 
   try {
@@ -40,8 +41,38 @@ app.post("/form",async  (req: Request, res: Response) => {
 
     // Save validated data to Firestore
     await db.collection("ron_forms").add(validatedData);
-    
-    // If validation succeeds, proceed with the validated data
+
+    // Send email notification
+    const htmlContent = `
+      <h2>New Property Inquiry Received</h2>
+      <p>A new inquiry has been submitted for the following property:</p>
+      <p><a href="${validatedData.listingUrl}">View Property Listing</a></p>
+      
+      <h3>Inquiry Details:</h3>
+      <ul>
+        <li><strong>Name:</strong> ${validatedData.name}</li>
+        <li><strong>Email:</strong> ${validatedData.email}</li>
+        <li><strong>Phone:</strong> ${validatedData.phone}</li>
+        <li><strong>Message:</strong> ${validatedData.message}</li>
+        <li><strong>Submission Date:</strong> ${validatedData.submissionDate.toLocaleString()}</li>
+      </ul>
+      
+      <p>Please respond to this inquiry as soon as possible.</p>
+      <hr>
+      <p><small>This email was automatically generated from your real estate website's contact form.</small></p>
+    `;
+
+    let transporter = generateTransporter();
+    await transporter.sendMail({
+      from: SMTP_SEND_EMAIL,
+      to: "devanshtakkar@gmail.com", // Send to the real estate agent
+      replyTo: validatedData.email, // Set reply-to as the inquirer's email
+      subject: `New Property Inquiry from ${validatedData.name}`,
+      html: htmlContent,
+      text: `New Property Inquiry\n\nName: ${validatedData.name}\nEmail: ${validatedData.email}\nPhone: ${validatedData.phone}\nMessage: ${validatedData.message}\nProperty: ${validatedData.listingUrl}\nSubmission Date: ${validatedData.submissionDate.toLocaleString()}`
+    });
+
+    // If all operations succeed, proceed with the response
     res.status(200).json({
       message: "Form data validated and received successfully",
       data: validatedData
@@ -57,6 +88,7 @@ app.post("/form",async  (req: Request, res: Response) => {
         }))
       });
     } else {
+      console.error(error);
       // Handle unexpected errors
       res.status(500).json({
         message: "An unexpected error occurred",
