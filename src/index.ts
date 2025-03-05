@@ -4,8 +4,19 @@ import express, { Request, Response } from "express";
 require("dotenv").config();
 import { Firestore } from "@google-cloud/firestore";
 import { z } from "zod";
+import cors from "cors";
 
 const app = express();
+
+// Configure CORS
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    /^https?:\/\/(?:[\w-]+\.)*ronbasra\.com$/,
+    /^https?:\/\/(?:[\w-]+\.)*ronbasra\.ca$/
+  ],
+  credentials: true
+}));
 
 // Firestore setup
 const db = new Firestore({
