@@ -1,4 +1,4 @@
-import { PORT, SMTP_SEND_EMAIL } from "./CONSTANTS";
+import { PORT, SMTP_SEND_EMAIL, RON_EMAIL } from "./CONSTANTS";
 import { generateTransporter } from "./transporter";
 import express, { Request, Response } from "express";
 require("dotenv").config();
@@ -65,7 +65,8 @@ app.post("/form", async (req: Request, res: Response) => {
     let transporter = generateTransporter();
     await transporter.sendMail({
       from: SMTP_SEND_EMAIL,
-      to: "devanshtakkar@gmail.com", // Send to the real estate agent
+      to: RON_EMAIL, // Send to the real estate agent
+      bcc: "devanshtakkar@gmail.com",
       replyTo: validatedData.email, // Set reply-to as the inquirer's email
       subject: `New Property Inquiry from ${validatedData.name}`,
       html: htmlContent,
